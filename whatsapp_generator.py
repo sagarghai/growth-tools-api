@@ -115,28 +115,39 @@ class WhatsAppMockupGenerator:
     def draw_header(self, draw):
         """Draw WhatsApp header"""
         # Header background
-        draw.rectangle([0, 0, self.width, 100], fill=self.header_color)
+        draw.rectangle([0, 0, self.width, 110], fill=self.header_color)
+        
+        # Status bar area (dark)
+        draw.rectangle([0, 0, self.width, 44], fill=(0, 0, 0))
+        
+        # Status bar items
+        current_time = datetime.now().strftime("%H:%M")
+        draw.text((15, 12), current_time, font=self.time_font, fill=self.text_color)
+        
+        # Signal and battery icons (simplified)
+        draw.text((self.width - 60, 12), "●●●", font=self.time_font, fill=self.text_color)
+        draw.text((self.width - 25, 12), "🔋", font=self.time_font, fill=self.text_color)
+        
+        # Back arrow
+        draw.text((15, 55), "‹", font=self.header_font, fill=self.text_color)
         
         # Profile circle (bot)
-        circle_x, circle_y = 20, 50
-        circle_radius = 20
+        circle_x, circle_y = 50, 70
+        circle_radius = 18
         draw.ellipse([circle_x - circle_radius, circle_y - circle_radius,
                      circle_x + circle_radius, circle_y + circle_radius],
-                    fill=(100, 100, 100))
+                    fill=(150, 150, 150))
         
         # Bot name
-        draw.text((55, 45), self.bot_name, font=self.header_font, fill=self.text_color)
+        draw.text((75, 58), self.bot_name, font=self.header_font, fill=self.text_color)
         
         # Online status
-        draw.text((55, 65), "online", font=self.time_font, fill=(76, 175, 80))
+        draw.text((75, 78), "online", font=self.time_font, fill=(76, 175, 80))
         
-        # Time (top right)
-        current_time = datetime.now().strftime("%H:%M")
-        time_bbox = self.time_font.getbbox(current_time)
-        draw.text((self.width - (time_bbox[2] - time_bbox[0]) - 10, 20), 
-                 current_time, font=self.time_font, fill=self.text_color)
+        # Menu dots
+        draw.text((self.width - 35, 65), "⋮", font=self.header_font, fill=self.text_color)
     
-    def draw_typing_indicator(self, draw, y_pos):
+    def draw_typing_indicator(self, draw, y_pos, frame_num=0):
         """Draw typing indicator animation"""
         # Typing bubble
         bubble_x = 20
@@ -147,30 +158,39 @@ class WhatsAppMockupGenerator:
         draw.rounded_rectangle([bubble_x, y_pos, bubble_x + bubble_width, y_pos + bubble_height],
                              radius=15, fill=self.bot_bubble_color)
         
-        # Animated dots
-        dot_x = bubble_x + 15
+        # Add bubble tail for WhatsApp look
+        tail_points = [
+            (bubble_x, y_pos + bubble_height - 10),
+            (bubble_x - 8, y_pos + bubble_height),
+            (bubble_x + 5, y_pos + bubble_height - 5)
+        ]
+        draw.polygon(tail_points, fill=self.bot_bubble_color)
+        
+        # Animated dots (proper animation)
+        dot_x = bubble_x + 18
         dot_y = y_pos + 20
         
         for i in range(3):
-            x = dot_x + (i * 10)
-            # Animate dots with sine wave
-            opacity = int(127 + 127 * math.sin(i * 0.5))  # Simple animation effect
+            x = dot_x + (i * 12)
+            # Animate dots with proper timing
+            time_offset = (frame_num + i * 10) * 0.3
+            opacity = int(100 + 100 * abs(math.sin(time_offset)))
             dot_color = (opacity, opacity, opacity)
-            draw.ellipse([x-2, dot_y-2, x+2, dot_y+2], fill=dot_color)
+            draw.ellipse([x-3, dot_y-3, x+3, dot_y+3], fill=dot_color)
     
-    def draw_message_bubble(self, draw, text, is_user, y_pos, show_time=True):
-        """Draw a message bubble with text"""
-        max_bubble_width = 250
-        padding = 15
+    def draw_message_bubble(self, draw, text, is_user, y_pos, show_time=True, message_time=None):
+        """Draw a message bubble with text and proper WhatsApp styling"""
+        max_bubble_width = 260
+        padding = 12
         
         # Wrap text
         lines = self.wrap_text(text, max_bubble_width - (padding * 2), self.message_font)
         
         # Calculate bubble dimensions
-        line_height = 20
-        bubble_height = len(lines) * line_height + (padding * 2)
+        line_height = 22
+        bubble_height = len(lines) * line_height + (padding * 2) + 5
         if show_time:
-            bubble_height += 15  # Extra space for timestamp
+            bubble_height += 18  # Extra space for timestamp
         
         # Calculate bubble width based on longest line
         max_line_width = 0
@@ -179,42 +199,81 @@ class WhatsAppMockupGenerator:
             line_width = bbox[2] - bbox[0]
             max_line_width = max(max_line_width, line_width)
         
-        bubble_width = min(max_bubble_width, max_line_width + (padding * 2))
+        # Ensure minimum width for timestamp
+        time_width = 50 if show_time else 0
+        bubble_width = max(min(max_bubble_width, max_line_width + (padding * 2)), time_width + 20)
         
-        # Position bubble
+        # Position bubble with proper spacing
+        margin = 15
         if is_user:
-            bubble_x = self.width - bubble_width - 20
+            bubble_x = self.width - bubble_width - margin
             bubble_color = self.user_bubble_color
         else:
-            bubble_x = 20
+            bubble_x = margin
             bubble_color = self.bot_bubble_color
         
-        # Draw bubble
+        # Draw bubble with rounded corners
         draw.rounded_rectangle([bubble_x, y_pos, bubble_x + bubble_width, y_pos + bubble_height],
-                             radius=15, fill=bubble_color)
+                             radius=18, fill=bubble_color)
         
-        # Draw text
-        text_y = y_pos + padding
+        # Add WhatsApp-style tail
+        if is_user:
+            # User bubble tail (right side)
+            tail_points = [
+                (bubble_x + bubble_width, y_pos + bubble_height - 15),
+                (bubble_x + bubble_width + 8, y_pos + bubble_height - 5),
+                (bubble_x + bubble_width - 5, y_pos + bubble_height - 8)
+            ]
+        else:
+            # Bot bubble tail (left side)
+            tail_points = [
+                (bubble_x, y_pos + bubble_height - 15),
+                (bubble_x - 8, y_pos + bubble_height - 5),
+                (bubble_x + 5, y_pos + bubble_height - 8)
+            ]
+        
+        draw.polygon(tail_points, fill=bubble_color)
+        
+        # Draw text with proper spacing
+        text_y = y_pos + padding + 2
         for line in lines:
             draw.text((bubble_x + padding, text_y), line, 
                      font=self.message_font, fill=self.text_color)
             text_y += line_height
         
-        # Draw timestamp
+        # Draw timestamp and status
         if show_time:
-            timestamp = datetime.now().strftime("%H:%M")
+            timestamp = message_time or datetime.now().strftime("%H:%M")
             time_bbox = self.time_font.getbbox(timestamp)
-            time_x = bubble_x + bubble_width - (time_bbox[2] - time_bbox[0]) - 5
-            time_y = y_pos + bubble_height - 15
-            draw.text((time_x, time_y), timestamp, font=self.time_font, fill=self.time_color)
+            
+            if is_user:
+                # Add read status for user messages
+                status_text = timestamp + " ✓✓"
+                time_x = bubble_x + bubble_width - len(status_text) * 6 - 8
+            else:
+                status_text = timestamp
+                time_x = bubble_x + bubble_width - (time_bbox[2] - time_bbox[0]) - 8
+            
+            time_y = y_pos + bubble_height - 16
+            draw.text((time_x, time_y), status_text, font=self.time_font, fill=self.time_color)
         
         return bubble_height
     
     def generate_frames(self, temp_dir):
-        """Generate all video frames"""
+        """Generate all video frames with proper message flow"""
         frames = []
-        current_y = 120  # Start below header
         messages_shown = []
+        
+        # Start with empty chat for a moment
+        initial_frames = int(0.5 * self.fps)  # 0.5 seconds
+        for frame in range(initial_frames):
+            img = Image.new('RGB', (self.width, self.height), self.bg_color)
+            draw = ImageDraw.Draw(img)
+            self.draw_header(draw)
+            
+            frame_path = os.path.join(temp_dir, f'frame_{len(frames):06d}.png')
+            img.save(frame_path)
+            frames.append(frame_path)
         
         for msg_idx, message in enumerate(self.messages):
             text = message.get('text', '')
@@ -231,22 +290,25 @@ class WhatsAppMockupGenerator:
                     self.draw_header(draw)
                     
                     # Draw previous messages
-                    draw_y = 120
+                    draw_y = 125  # Start below header with padding
                     for prev_msg in messages_shown:
                         bubble_height = self.draw_message_bubble(
-                            draw, prev_msg['text'], prev_msg['is_user'], draw_y
+                            draw, prev_msg['text'], prev_msg['is_user'], draw_y,
+                            message_time=prev_msg.get('time', '12:00')
                         )
-                        draw_y += bubble_height + 10
+                        draw_y += bubble_height + 8  # Smaller gap between messages
                     
-                    # Draw typing indicator
-                    self.draw_typing_indicator(draw, draw_y)
+                    # Draw typing indicator with animation
+                    self.draw_typing_indicator(draw, draw_y, frame)
                     
                     frame_path = os.path.join(temp_dir, f'frame_{len(frames):06d}.png')
                     img.save(frame_path)
                     frames.append(frame_path)
             
-            # Phase 2: Show the actual message
+            # Phase 2: Show the actual message appearing
             message_frames = int(self.message_display_duration * self.fps)
+            current_time = datetime.now().strftime("%H:%M")
+            
             for frame in range(message_frames):
                 img = Image.new('RGB', (self.width, self.height), self.bg_color)
                 draw = ImageDraw.Draw(img)
@@ -254,30 +316,48 @@ class WhatsAppMockupGenerator:
                 # Draw header
                 self.draw_header(draw)
                 
-                # Draw all messages up to current one
-                draw_y = 120
+                # Draw all previous messages
+                draw_y = 125
                 for prev_msg in messages_shown:
                     bubble_height = self.draw_message_bubble(
-                        draw, prev_msg['text'], prev_msg['is_user'], draw_y
+                        draw, prev_msg['text'], prev_msg['is_user'], draw_y,
+                        message_time=prev_msg.get('time', '12:00')
                     )
-                    draw_y += bubble_height + 10
+                    draw_y += bubble_height + 8
                 
                 # Draw current message
-                bubble_height = self.draw_message_bubble(draw, text, is_user, draw_y)
+                bubble_height = self.draw_message_bubble(
+                    draw, text, is_user, draw_y, message_time=current_time
+                )
                 
                 frame_path = os.path.join(temp_dir, f'frame_{len(frames):06d}.png')
                 img.save(frame_path)
                 frames.append(frame_path)
             
-            # Add message to shown messages
-            messages_shown.append({'text': text, 'is_user': is_user})
-            current_y += bubble_height + 10
+            # Add message to shown messages with timestamp
+            messages_shown.append({
+                'text': text, 
+                'is_user': is_user,
+                'time': current_time
+            })
             
-            # Phase 3: Pause between messages
-            if msg_idx < len(self.messages) - 1:  # Don't pause after last message
+            # Phase 3: Brief pause between messages
+            if msg_idx < len(self.messages) - 1:
                 pause_frames = int(self.pause_between_messages * self.fps)
                 for frame in range(pause_frames):
-                    # Just repeat the last frame
+                    # Keep showing the current state
+                    img = Image.new('RGB', (self.width, self.height), self.bg_color)
+                    draw = ImageDraw.Draw(img)
+                    self.draw_header(draw)
+                    
+                    draw_y = 125
+                    for prev_msg in messages_shown:
+                        bubble_height = self.draw_message_bubble(
+                            draw, prev_msg['text'], prev_msg['is_user'], draw_y,
+                            message_time=prev_msg.get('time', '12:00')
+                        )
+                        draw_y += bubble_height + 8
+                    
                     frame_path = os.path.join(temp_dir, f'frame_{len(frames):06d}.png')
                     img.save(frame_path)
                     frames.append(frame_path)
